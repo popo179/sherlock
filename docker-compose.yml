@@ -1,0 +1,47 @@
+version: "3.8"
+
+services:
+  opensearch:
+    image: opensearchproject/opensearch:2.15.0
+    container_name: opensearch
+    environment:
+      # Required for single-node setup
+      - discovery.type=single-node
+
+      # Required from OpenSearch 2.12 onwards
+      - OPENSEARCH_INITIAL_ADMIN_PASSWORD=17-Sep-1995
+
+      # Keep security enabled (recommended)
+      - plugins.security.disabled=true
+
+      # Java memory options (safe for local)
+      - "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m"
+
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+
+    ports:
+      - "9200:9200"
+      - "9600:9600" # Performance analyzer port
+
+    healthcheck:
+      test: ["CMD-SHELL", "curl -k --silent https://localhost:9200/_cluster/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  dashboards:
+    image: opensearchproject/opensearch-dashboards:2.15.0
+    container_name: opensearch-dashboards
+    ports:
+      - "5601:5601"
+    environment:
+      # Connect to secured OpenSearch
+      - OPENSEARCH_HOSTS=["https://opensearch:9200"]
+      - OPENSEARCH_USERNAME=admin
+      - OPENSEARCH_PASSWORD=17-Sep-1995
+
+    depends_on:
+      - opensearch
