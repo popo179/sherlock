@@ -13,18 +13,28 @@ import java.util.List;
 @AllArgsConstructor
 public class TripSearchDocument {
 
-    private String tripId;
+    private String tripCode;
     private String origin;
     private String destination;
+    private String status;
     private List<Shipment> shipments;
-    private List<OrderDocument> order;
+    private List<OrderDocument> orders;
+    private List<Consignment>  consignments;
 
     @Data
     @NoArgsConstructor
     @AllArgsConstructor
     @Builder
     public static class Shipment {
-        private String shipmentId;
+        private String shipmentCode;
         private String externalCustomerOrderId;
+    }
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    public static class Consignment {
+        private String consignmentCode;
     }
 }

@@ -4,7 +4,7 @@ import lombok.Data;
 
 @Data
 public class OrderDocument {
-    private String orderId;
+    private String orderCode;
     private String status;
     private String customerName;
 }

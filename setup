@@ -1,0 +1,193 @@
+--- trip-index ----
+
+curl --location --request PUT 'http://localhost:9200/trip-index' \
+--header 'Content-Type: application/json' \
+--data '{
+    "settings": {
+        "analysis": {
+            "analyzer": {
+                "ngram_analyzer": {
+                    "tokenizer": "ngram_tokenizer",
+                    "filter": [
+                        "lowercase"
+                    ]
+                }
+            },
+            "tokenizer": {
+                "ngram_tokenizer": {
+                    "type": "edge_ngram",
+                    "min_gram": 2,
+                    "max_gram": 10,
+                    "token_chars": [
+                        "letter"
+                    ]
+                }
+            }
+        }
+    },
+    "mappings": {
+        "properties": {
+            "origin": {
+                "type": "text"
+            },
+            "destination": {
+                "type": "text"
+            },
+            "tripCode": {
+                "type": "keyword"
+            },
+            "status": {
+                "type": "keyword"
+            },
+            "orders": {
+                "type": "nested",
+                "properties": {
+                    "orderCode": {
+                        "type": "keyword"
+                    },
+                    "status": {
+                        "type": "keyword"
+                    },
+                    "customerName": {
+                        "type": "text"
+                    }
+                }
+            },
+            "shipments": {
+                "type": "nested",
+                "properties": {
+                    "shipmentCode": {
+                        "type": "keyword"
+                    },
+                    "externalCustomerOrderId": {
+                        "type": "keyword"
+                    }
+                }
+            },
+            "consignments": {
+                "type": "nested",
+                "properties": {
+                    "consignmentCode": {
+                        "type": "keyword"
+                    }
+                }
+            }
+        }
+    }
+}'
+
+
+
+
+-------- Get-Trips ---------
+
+curl --location 'http://localhost:8080/trips?consignmentStatus=IN_TRANSIT&orderStatus=DELIVERED'
+
+
+
+------- Create-Trips -------
+
+curl --location 'http://localhost:8080/trips' \
+--header 'Content-Type: application/json' \
+--data '{
+    "tripCode": "TRP-10",
+    "origin": "Helsinki",
+    "destination": "Prague",
+    "status": "PLANNED",
+    "shipments": [
+        {
+            "shipmentCode": "SHIP-10A",
+            "externalCustomerOrderId": "ECO10A"
+        },
+        {
+            "shipmentCode": "SHIP-10B",
+            "externalCustomerOrderId": "ECO10B"
+        }
+    ],
+    "orders": [
+        {
+            "orderCode": "OD-10A",
+            "status": "IN_TRANSIT",
+            "customerName": "Anna Kowalski"
+        },
+        {
+            "orderCode": "OD-10B",
+            "status": "CREATED",
+            "customerName": "Miguel Costa"
+        }
+    ],
+    "consignments": [
+        {
+            "consignmentCode": "CN-10"
+        }
+    ]
+}'
+
+
+------- Data Generate --------
+
+ORIGINS=("London" "Paris" "Berlin" "Madrid" "Rome" "Vienna" "Amsterdam" "Brussels" "Zurich" "Prague" "Lisbon" "Copenhagen" "Stockholm" "Oslo" "Dublin" "Budapest" "Warsaw" "Helsinki" "Athens" "Barcelona")
+DESTS=("London" "Paris" "Berlin" "Madrid" "Rome" "Vienna" "Amsterdam" "Brussels" "Zurich" "Prague" "Lisbon" "Copenhagen" "Stockholm" "Oslo" "Dublin" "Budapest" "Warsaw" "Helsinki" "Athens" "Barcelona")
+
+NAMES=("John Doe" "Alice Kim" "Peter Novak" "Maria Rossi" "Sofia Müller" "Lars Jensen" "Emma Johansson" "Carlos Ortega" "Elena Petrova" "Anna Kowalski" "Daniel Schmidt" "Nina Horváth" "Miguel Costa" "Laura Papadopoulos" "Jakub Nowak" "Helena Silva")
+ORDERSTATUS=("DELIVERED" "IN_TRANSIT" "CREATED")
+TRIPSTATUS=("IN_PROGRESS" "COMPLETED" "PLANNED")
+
+for i in {1..20}; do
+  tripCode="TRP-$i"
+
+  sh1="SHIP-${i}A"
+  sh2="SHIP-${i}B"
+
+  eco1="ECO${i}A"
+  eco2="ECO${i}B"
+
+  o1="OD-${i}A"
+  o2="OD-${i}B"
+
+  c1="CN-${i}"
+
+  # Random picks (ZSH-safe)
+  origin=${ORIGINS[$((RANDOM % ${#ORIGINS[@]} + 1))]}
+  dest=${DESTS[$((RANDOM % ${#DESTS[@]} + 1))]}
+  customer1=${NAMES[$((RANDOM % ${#NAMES[@]} + 1))]}
+  customer2=${NAMES[$((RANDOM % ${#NAMES[@]} + 1))]}
+  orderStatus1=${ORDERSTATUS[$((RANDOM % ${#ORDERSTATUS[@]} + 1))]}
+  orderStatus2=${ORDERSTATUS[$((RANDOM % ${#ORDERSTATUS[@]} + 1))]}
+  tripStatus=${TRIPSTATUS[$((RANDOM % ${#TRIPSTATUS[@]} + 1))]}
+
+  json=$(printf '{
+    "tripCode": "%s",
+    "origin": "%s",
+    "destination": "%s",
+    "status": "%s",
+    "shipments": [
+      { "shipmentCode": "%s", "externalCustomerOrderId": "%s" },
+      { "shipmentCode": "%s", "externalCustomerOrderId": "%s" }
+    ],
+    "orders": [
+      { "orderCode": "%s", "status": "%s", "customerName": "%s" },
+      { "orderCode": "%s", "status": "%s", "customerName": "%s" }
+    ],
+    "consignments": [
+      { "consignmentCode": "%s" }
+    ]
+  }' "$tripCode" "$origin" "$dest" "$tripStatus" "$sh1" "$eco1" "$sh2" "$eco2" "$o1" "$orderStatus1" "$customer1" "$o2" "$orderStatus2" "$customer2" "$c1")
+
+  curl --silent --location 'http://localhost:8080/trips' \
+    --header 'Content-Type: application/json' \
+    --data "$json"
+
+done
+
+
+
+------- Update order --------
+
+curl --location 'http://localhost:8080/trips/order/02' \
+--header 'Content-Type: application/json' \
+--data '{
+    "orderId": "02",
+    "status": "CANCELLED",
+    "customerName": "Gourab"
+}'

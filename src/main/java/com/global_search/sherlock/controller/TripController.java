@@ -20,25 +20,29 @@ public class TripController {
     @GetMapping
     public List<TripSearchDocument> searchTrips(
             @RequestParam(required = false) String orderStatus,
-            @RequestParam(required = false) String shipmentOrderId,
+            @RequestParam(required = false) String shipmentCode,
             @RequestParam(required = false) String origin,
             @RequestParam(required = false) String destination,
-            @RequestParam(required = false) String tripId
+            @RequestParam(required = false) String tripCode,
+            @RequestParam(required = false) String orderCode,
+            @RequestParam(required = false) String consignmentCode,
+            @RequestParam(required = false) String tripStatus
     ) throws IOException {
-        return tripService.searchTrips(orderStatus, shipmentOrderId, origin, destination, tripId);
+        return tripService.searchTrips(orderStatus, shipmentCode, origin, destination,
+                tripCode, orderCode, consignmentCode, tripStatus);
     }
 
     // Index a new trip
     @PostMapping
     public String addTrip(@RequestBody TripSearchDocument trip) throws IOException {
         tripService.indexTrip(trip);
-        return "Trip indexed: " + trip.getTripId();
+        return "Trip indexed: " + trip.getTripCode();
     }
 
-    @PostMapping("/order/{orderId}")
+    @PostMapping("/order/{orderCode}")
     public void updateTrip(@RequestBody OrderDocument order,
-                           @PathVariable("orderId") String orderId) throws IOException {
-        tripService.updateTripOrder(orderId, order);
+                           @PathVariable("orderCode") String orderCode) throws IOException {
+        tripService.updateTripOrder(orderCode, order);
     }
 }
 

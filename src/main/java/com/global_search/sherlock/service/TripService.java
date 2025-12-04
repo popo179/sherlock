@@ -5,8 +5,6 @@ import com.global_search.sherlock.document.TripSearchDocument;
 import lombok.RequiredArgsConstructor;
 import org.opensearch.client.json.JsonData;
 import org.opensearch.client.opensearch.OpenSearchClient;
-import org.opensearch.client.opensearch._types.FieldValue;
-import org.opensearch.client.opensearch._types.OpenSearchException;
 import org.opensearch.client.opensearch._types.query_dsl.Query;
 import org.opensearch.client.opensearch.core.IndexRequest;
 import org.opensearch.client.opensearch.core.IndexResponse;
@@ -31,7 +29,7 @@ public class TripService {
     public void indexTrip(TripSearchDocument trip) throws IOException {
         IndexRequest<TripSearchDocument> request = IndexRequest.of(i -> i
                 .index("trip-index")
-                .id(trip.getTripId())
+                .id(trip.getTripCode())
                 .document(trip)
         );
         IndexResponse response = client.index(request);
@@ -40,21 +38,17 @@ public class TripService {
 
     public List<TripSearchDocument> searchTrips(
             String orderStatus,
-            String shipmentOrderId,
+            String shipmentCode,
             String origin,
             String destination,
-            String tripId
+            String tripCode,
+            String orderCode,
+            String consignmentCode,
+            String tripStatus
     ) throws IOException {
 
         Query query = Query.of(q -> q
                 .bool(b -> {
-                    // Order status filter
-                    if (orderStatus != null && !orderStatus.isEmpty()) {
-                        b.must(Query.of(q2 -> q2.term(t -> t
-                                .field("order.status")
-                                .value(v -> v.stringValue(orderStatus))
-                        )));
-                    }
 
                     if (origin != null && !origin.isEmpty()) {
                         b.must(Query.of(q2 -> q2.match(m -> m
@@ -71,23 +65,66 @@ public class TripService {
                         )));
                     }
 
+                    if (tripStatus != null && !tripStatus.isEmpty()) {
+                        b.must(Query.of(q2 -> q2.match(m -> m
+                                .field("status")
+                                .query(v -> v.stringValue(tripStatus))
+                        )));
+                    }
+
                     // Shipment nested filter
-                    if (shipmentOrderId != null && !shipmentOrderId.isEmpty()) {
+                    if (shipmentCode != null && !shipmentCode.isEmpty()) {
                         b.must(Query.of(q2 -> q2.nested(n -> n
                                 .path("shipments")
                                 .query(Query.of(nq -> nq
                                         .term(t -> t
-                                                .field("shipments.externalCustomerOrderId")
-                                                .value(v -> v.stringValue(shipmentOrderId))
+                                                .field("shipments.shipmentCode")
+                                                .value(v -> v.stringValue(shipmentCode))
                                         )
                                 ))
                         )));
                     }
 
-                    if (tripId != null && !tripId.isEmpty()) {
+                    if (tripCode != null && !tripCode.isEmpty()) {
                         b.must(Query.of(q2 -> q2.match(m -> m
-                                .field("tripId")
-                                .query(v -> v.stringValue(tripId))
+                                .field("tripCode")
+                                .query(v -> v.stringValue(tripCode))
+                        )));
+                    }
+
+                    if (orderCode != null && !orderCode.isEmpty()) {
+                        b.must(Query.of(q2 -> q2.nested(m -> m
+                                .path("orders")
+                                .query(Query.of(nq -> nq
+                                    .term(t -> t
+                                            .field("orders.orderCode")
+                                            .value(v -> v.stringValue(orderCode))
+                                    )
+                                ))
+                        )));
+                    }
+
+                    if (orderStatus != null && !orderStatus.isEmpty()) {
+                        b.must(Query.of(q2 -> q2.nested(m -> m
+                                .path("orders")
+                                .query(Query.of(nq -> nq
+                                        .term(t -> t
+                                                .field("orders.status")
+                                                .value(v -> v.stringValue(orderStatus))
+                                        )
+                                ))
+                        )));
+                    }
+
+                    if (consignmentCode != null && !consignmentCode.isEmpty()) {
+                        b.must(Query.of(q2 -> q2.nested(m -> m
+                                .path("consignments")
+                                .query(Query.of(nq -> nq
+                                        .term(t -> t
+                                                .field("consignments.consignmentCode")
+                                                .value(v -> v.stringValue(consignmentCode))
+                                        )
+                                ))
                         )));
                     }
 
@@ -107,12 +144,12 @@ public class TripService {
                 .toList();
     }
 
-    public void updateShipment(String shipmentId, TripSearchDocument.Shipment shipment) {
+    public void updateShipment(String shipmentCode, TripSearchDocument.Shipment shipment) {
 
         // Script to replace the matching order object
         String script =
                 "for (int i = 0; i < ctx._source.shipments.size(); i++) {" +
-                        "  if (ctx._source.shipments[i].shipmentId == params.shipmentId) {" +
+                        "  if (ctx._source.shipments[i].shipmentCode == params.shipmentCode) {" +
                         "    ctx._source.shipments[i] = params.newShipment;" +
                         "  }" +
                         "}";
@@ -126,7 +163,7 @@ public class TripService {
 
                     // Prepare params
                     Map<String, JsonData> params = new HashMap<>();
-                    params.put("shipmentId", JsonData.of(shipmentId));
+                    params.put("shipmentCode", JsonData.of(shipmentCode));
                     params.put("newShipment", JsonData.of(shipment));
 
                     in.params(params);
@@ -143,12 +180,12 @@ public class TripService {
         }
     }
 
-    public void updateTripOrder(String orderId, OrderDocument updatedOrderDoc) {
+    public void updateTripOrder(String orderCode, OrderDocument updatedOrderDoc) {
 
         // Script to replace the matching order object
         String script =
                 "for (int i = 0; i < ctx._source.order.size(); i++) {" +
-                        "  if (ctx._source.order[i].orderId == params.orderId) {" +
+                        "  if (ctx._source.order[i].orderCode == params.orderCode) {" +
                         "    ctx._source.order[i] = params.newOrder;" +
                         "  }" +
                         "}";
@@ -162,11 +199,11 @@ public class TripService {
 
                     // Prepare params
                     Map<String, JsonData> params = new HashMap<>();
-                    params.put("orderId", JsonData.of(orderId));
+                    params.put("orderCode", JsonData.of(orderCode));
 
                     // Map updatedOrderDoc to a JSON object for painless
                     Map<String, Object> newOrderMap = new HashMap<>();
-                    newOrderMap.put("orderId", updatedOrderDoc.getOrderId());
+                    newOrderMap.put("orderCode", updatedOrderDoc.getOrderCode());
                     newOrderMap.put("status", updatedOrderDoc.getStatus());
                     newOrderMap.put("customerName", updatedOrderDoc.getCustomerName());
 

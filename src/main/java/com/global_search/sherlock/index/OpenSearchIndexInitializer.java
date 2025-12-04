@@ -30,6 +30,10 @@ public class OpenSearchIndexInitializer {
                                     .properties("shipmentId", f -> f.keyword(k -> k))
                                     .properties("externalCustomerOrderId", f -> f.keyword(k -> k))
                             ))
+                            .properties("consignment", p -> p.nested(n -> n
+                                    .properties("consignmentId", f -> f.keyword(k -> k))
+                                    .properties("consignmentCode", f -> f.text(t -> t))
+                            ))
                     )
             );
             System.out.println("Trip index created: " + response.acknowledged());

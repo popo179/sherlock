@@ -17,14 +17,14 @@ public class TripSearchRepository {
         try {
             IndexRequest<TripSearchDocument> request = IndexRequest.of(i -> i
                     .index("trip-index")
-                    .id(doc.getTripId())
+                    .id(doc.getTripCode())
                     .document(doc)
             );
 
             IndexResponse response = client.index(request);
 
             // ensure returned doc contains ID from OpenSearch
-            doc.setTripId(response.id());
+            doc.setTripCode(response.id());
 
             return doc;
 
