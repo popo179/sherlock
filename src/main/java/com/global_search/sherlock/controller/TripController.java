@@ -9,28 +9,27 @@ import java.io.IOException;
 import java.util.List;
 
 @RestController
-@RequestMapping("/search/trips")
 @RequiredArgsConstructor
+@RequestMapping("/trips")
 public class TripController {
 
     private final TripService tripService;
 
-    // Multi-criteria search endpoint
     @GetMapping
-    public List<TripSearchDocument> searchTrips(
-            @RequestParam(required = false) String orderStatus,
-            @RequestParam(required = false) String shipmentOrderId,
-            @RequestParam(required = false) String origin,
-            @RequestParam(required = false) String destination
-    ) throws IOException {
-        return tripService.searchTrips(orderStatus, shipmentOrderId, origin, destination);
+    public List<TripSearchDocument> search(@RequestParam String q) throws IOException {
+        return tripService.searchTrips(q);
     }
 
-    // Index a new trip
     @PostMapping
     public String addTrip(@RequestBody TripSearchDocument trip) throws IOException {
         tripService.indexTrip(trip);
-        return "Trip indexed: " + trip.getTripId();
+        return "Trip indexed: " + trip.getTripCode();
+    }
+
+    @PostMapping("/bulk")
+    public void indexTripsBulk(@RequestBody List<TripSearchDocument> trips) throws IOException {
+        tripService.indexTrips(trips);
     }
 }
+
 
