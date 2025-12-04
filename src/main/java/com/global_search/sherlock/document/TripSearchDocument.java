@@ -17,7 +17,7 @@ public class TripSearchDocument {
     private String origin;
     private String destination;
     private List<Shipment> shipments;
-    private OrderInfo order;
+    private List<OrderDocument> order;
 
     @Data
     @NoArgsConstructor
@@ -26,15 +26,5 @@ public class TripSearchDocument {
     public static class Shipment {
         private String shipmentId;
         private String externalCustomerOrderId;
-    }
-
-    @Data
-    @NoArgsConstructor
-    @AllArgsConstructor
-    @Builder
-    public static class OrderInfo {
-        private String orderId;
-        private String status;
-        private String customerName;
     }
 }
